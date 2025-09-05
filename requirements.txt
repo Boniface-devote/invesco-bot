@@ -1,0 +1,6 @@
+Flask==3.1.2
+pdfplumber==0.11.7
+selenium==4.35.0
+webdriver-manager==4.0.2
+python-dotenv==1.1.1
+gunicorn==23.0.0

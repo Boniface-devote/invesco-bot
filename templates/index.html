@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Certificate PDF</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Arial', sans-serif;
+        }
+        .container {
+            max-width: 800px;
+            margin-top: 50px;
+            padding: 30px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+        }
+        h1, h2 {
+            color: #343a40;
+            text-align: center;
+        }
+        .form-control {
+            margin-bottom: 20px;
+        }
+        .btn-primary {
+            width: 100%;
+        }
+        .table {
+            margin-top: 20px;
+        }
+        #form-status {
+            margin-top: 20px;
+            text-align: center;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Upload Certificate PDF</h1>
+        <form method="POST" enctype="multipart/form-data">
+            <div class="mb-3">
+                <input type="file" name="pdf" accept=".pdf" class="form-control">
+            </div>
+            <input type="submit" value="Extract" class="btn btn-primary">
+        </form>
+
+        {% if data %}
+        <h2>Extracted Data</h2>
+        <table class="table table-striped table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>Key</th>
+                    <th>Value</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for key, value in data.items() %}
+                <tr>
+                    <td>{{ key.replace("_", " ") | title }}</td>
+                    <td>
+                        {% if value is iterable and value is not string %}
+                            {{ value | join(', ') }}
+                        {% else %}
+                            {{ value }}
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <button onclick="fillForm()" class="btn btn-success">Fill Form with Extracted Data</button>
+        <button onclick="downloadData()" class="btn btn-info ms-2">Download Data as JSON</button>
+        <div id="form-status" class="alert alert-info mt-3" style="display: none;"></div>
+        {% endif %}
+    </div>
+
+    <script>
+        async function fillForm() {
+            const statusDiv = document.getElementById('form-status');
+            statusDiv.style.display = 'block';
+            statusDiv.classList.remove('alert-danger', 'alert-success');
+            statusDiv.innerHTML = 'Processing...';
+
+            try {
+                const response = await fetch('/fill-form', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({{ data | tojson }})
+                });
+                const result = await response.json();
+                if (result.error) {
+                    statusDiv.classList.add('alert-danger');
+                    statusDiv.innerHTML = `Error: ${result.error}`;
+                } else if (result.status === 'info') {
+                    statusDiv.classList.add('alert-warning');
+                    statusDiv.innerHTML = `${result.message}<br><br>You can download the extracted data below and fill the form manually.`;
+                } else {
+                    statusDiv.classList.add('alert-success');
+                    statusDiv.innerHTML = 'Form filled successfully! Check the browser for details.';
+                }
+            } catch (error) {
+                statusDiv.classList.add('alert-danger');
+                statusDiv.innerHTML = `Error: ${error.message}`;
+            }
+        }
+
+        function downloadData() {
+            const data = {{ data | tojson }};
+            const dataStr = JSON.stringify(data, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'extracted_data.json';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+</body>
+</html>
