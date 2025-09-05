@@ -189,35 +189,38 @@ def index():
 
     return render_template("index.html", data=extracted_data)
 
-@app.route("/fill-form", methods=["POST"])
-def fill_form():
+@app.route("/open-form", methods=["POST"])
+def open_form():
+    """Open the Invesco form in the user's browser with instructions"""
     data = request.get_json()
     if not data:
         return jsonify({"error": "No data provided"}), 400
 
     try:
-        # Check if we're in a Railway environment (headless)
-        is_railway = os.getenv('RAILWAY_ENVIRONMENT') is not None
+        # Return the form URL and instructions for client-side handling
+        form_url = "https://www.invesco-ug.com/business/application/new"
         
-        if is_railway:
-            # In Railway, we'll return a message that form filling is not available
-            # due to browser automation limitations in cloud environments
-            return jsonify({
-                "status": "info", 
-                "message": "Form filling is not available in cloud deployment. Please use the extracted data manually.",
-                "extracted_data": data
-            })
-        else:
-            # Local environment - run the browser automation
-            result = subprocess.run(
-                [sys.executable, "login.py"],
-                input=json.dumps(data),
-                text=True,
-                capture_output=True
-            )
-            return jsonify({"status": "success", "output": result.stdout, "error": result.stderr})
+        # Generate form settings based on certificate type
+        cert_type = data.get('Certificate_Type', 'Normal')
+        form_settings = {
+            "issuing_body": "DR CONGO",
+            "cert_type": "CONTINUANCE" if cert_type == "AD" else "REGIONAL",
+            "cargo_origin": "OUTSIDE UGANDA" if cert_type == "AD" else "UGANDA",
+            "shipment_route": "OUT-BOUND",
+            "transport_mode": "ROAD",
+            "fob_currency": "USD",
+            "freight_currency": "USD",
+            "out_bound_border": data.get('Out_Bound_Border', 'UNKNOWN')
+        }
+        
+        return jsonify({
+            "status": "success",
+            "form_url": form_url,
+            "form_settings": form_settings,
+            "extracted_data": data
+        })
     except Exception as e:
-        logger.error(f"Error in fill_form: {str(e)}")
+        logger.error(f"Error in open_form: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 @app.route("/health")

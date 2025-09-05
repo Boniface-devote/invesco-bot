@@ -5,9 +5,11 @@ A Flask web application that extracts data from PDF certificates and can automat
 ## Features
 
 - **PDF Data Extraction**: Extracts data from both Normal and AD certificates
-- **Form Auto-filling**: Automatically fills forms on the Invesco website (local only)
+- **Client-Side Form Filling**: Opens Invesco form in user's browser with step-by-step instructions
+- **One-Click Copy**: Copy individual fields or all data to clipboard
 - **Cloud Deployment**: Ready for deployment on Railway
 - **Data Export**: Download extracted data as JSON
+- **Cross-Platform**: Works on Windows, Mac, and Linux
 
 ## Local Development
 
@@ -81,9 +83,10 @@ The application will be available at `http://localhost:5000`
 
 ### Important Notes for Railway
 
-- **Form Filling Limitation**: Due to browser automation limitations in cloud environments, the form filling feature is disabled on Railway
+- **Client-Side Form Filling**: The form filling now works by opening the user's browser with instructions
 - **Data Extraction**: PDF data extraction works perfectly on Railway
-- **Manual Process**: Users can download the extracted data as JSON and fill forms manually
+- **User-Friendly**: Step-by-step instructions guide users through the form filling process
+- **No Server Dependencies**: Form filling runs entirely on the user's machine
 
 ## Usage
 
@@ -91,9 +94,20 @@ The application will be available at `http://localhost:5000`
 2. **Extract Data**: Click "Extract" to process the PDF
 3. **View Results**: Review the extracted data in the table
 4. **Fill Form**: 
-   - **Local**: Click "Fill Form" for automatic form filling
-   - **Railway**: Download data as JSON and fill manually
-5. **Download Data**: Click "Download Data as JSON" to save extracted data
+   - Click "🚀 Open Invesco Form" to open the form in your browser
+   - Click "📋 Show Instructions" for step-by-step guidance
+   - Use "Copy" buttons to copy individual field values
+   - Use "📋 Copy All Data" to copy all data at once
+5. **Download Data**: Click "💾 Download Data" to save extracted data as JSON
+
+### Form Filling Process
+
+1. **Open Form**: Click "🚀 Open Invesco Form" - this opens the Invesco website in a new tab
+2. **Login**: If not already logged in, enter your credentials
+3. **Follow Instructions**: Use the step-by-step instructions to fill the form:
+   - Select the correct dropdown values (Issuing Body, Cert. Type, etc.)
+   - Copy and paste the extracted data into the appropriate fields
+4. **Submit**: Review and submit the form
 
 ## Supported Certificate Types
 
@@ -104,14 +118,19 @@ The application will be available at `http://localhost:5000`
 
 ```
 ├── app.py                 # Main Flask application
-├── login.py              # Selenium automation script
+├── login.py              # Selenium automation script (legacy)
+├── client_automation.py  # Client-side browser automation
 ├── templates/
 │   └── index.html        # Web interface
+├── static/
+│   └── browser_automation.js  # Client-side JavaScript
 ├── requirements.txt      # Python dependencies
 ├── Procfile             # Railway deployment config
 ├── runtime.txt          # Python version specification
 ├── railway.json         # Railway-specific configuration
 ├── env.example          # Environment variables template
+├── open_form.bat        # Windows batch file for form opening
+├── open_form.sh         # Unix/Linux shell script for form opening
 └── README.md            # This file
 ```
 

@@ -73,46 +73,173 @@
                 {% endfor %}
             </tbody>
         </table>
-        <button onclick="fillForm()" class="btn btn-success">Fill Form with Extracted Data</button>
-        <button onclick="downloadData()" class="btn btn-info ms-2">Download Data as JSON</button>
+        <button onclick="openInvescoForm()" class="btn btn-success">🚀 Open Invesco Form</button>
+        <button onclick="showInstructions()" class="btn btn-info ms-2">📋 Show Instructions</button>
+        <button onclick="downloadData()" class="btn btn-secondary ms-2">💾 Download Data</button>
         <div id="form-status" class="alert alert-info mt-3" style="display: none;"></div>
         {% endif %}
     </div>
 
     <script>
-        async function fillForm() {
-            const statusDiv = document.getElementById('form-status');
-            statusDiv.style.display = 'block';
-            statusDiv.classList.remove('alert-danger', 'alert-success');
-            statusDiv.innerHTML = 'Processing...';
-
-            try {
-                const response = await fetch('/fill-form', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({{ data | tojson }})
-                });
-                const result = await response.json();
-                if (result.error) {
-                    statusDiv.classList.add('alert-danger');
-                    statusDiv.innerHTML = `Error: ${result.error}`;
-                } else if (result.status === 'info') {
-                    statusDiv.classList.add('alert-warning');
-                    statusDiv.innerHTML = `${result.message}<br><br>You can download the extracted data below and fill the form manually.`;
-                } else {
-                    statusDiv.classList.add('alert-success');
-                    statusDiv.innerHTML = 'Form filled successfully! Check the browser for details.';
-                }
-            } catch (error) {
-                statusDiv.classList.add('alert-danger');
-                statusDiv.innerHTML = `Error: ${error.message}`;
+        // Make extracted data available globally
+        window.extractedData = {{ data | tojson }};
+        
+        function openInvescoForm() {
+            // Open the Invesco form in a new tab
+            const formUrl = 'https://www.invesco-ug.com/business/application/new';
+            const formWindow = window.open(formUrl, '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
+            
+            if (formWindow) {
+                // Show instructions after a short delay
+                setTimeout(() => {
+                    showInstructions();
+                }, 1000);
+            } else {
+                alert('Please allow popups for this site to open the form automatically.');
+                // Fallback: just open the URL
+                window.open(formUrl, '_blank');
             }
+        }
+        
+        function showInstructions() {
+            const instructions = generateInstructions();
+            const modal = createModal('Form Filling Instructions', instructions);
+            document.body.appendChild(modal);
+        }
+        
+        function generateInstructions() {
+            const data = window.extractedData;
+            const certType = data.Certificate_Type || 'Normal';
+            const border = data.Out_Bound_Border || 'UNKNOWN';
+            
+            return `
+                <div class="form-instructions">
+                    <h4>📋 Step-by-Step Instructions:</h4>
+                    <ol>
+                        <li><strong>Login:</strong> If not already logged in, go to the login page and enter your credentials</li>
+                        <li><strong>Navigate to Form:</strong> Go to the new application form</li>
+                        <li><strong>Fill Dropdowns:</strong>
+                            <ul>
+                                <li><strong>Issuing Body:</strong> Select "DR CONGO"</li>
+                                <li><strong>Cert. Type:</strong> Select "${certType === 'AD' ? 'CONTINUANCE' : 'REGIONAL'}"</li>
+                                <li><strong>Cargo Origin:</strong> Select "${certType === 'AD' ? 'OUTSIDE UGANDA' : 'UGANDA'}"</li>
+                                <li><strong>Shipment Route:</strong> Select "OUT-BOUND"</li>
+                                <li><strong>Transport Mode:</strong> Select "ROAD"</li>
+                                <li><strong>FOB Currency:</strong> Select "USD"</li>
+                                <li><strong>Freight Currency:</strong> Select "USD"</li>
+                                <li><strong>Out-Bound Border:</strong> Select "${border}"</li>
+                            </ul>
+                        </li>
+                        <li><strong>Fill Text Fields:</strong> Copy the values from the table below</li>
+                        <li><strong>Submit:</strong> Review and submit the form</li>
+                    </ol>
+                    
+                    <h4>📊 Data to Copy:</h4>
+                    <div class="data-copy-section">
+                        ${generateDataCopySection()}
+                    </div>
+                    
+                    <div class="button-group mt-3">
+                        <button onclick="copyAllData()" class="btn btn-primary">📋 Copy All Data</button>
+                        <button onclick="copyField('certificateNumber', '${(data.Certificate_No || '').replace(/'/g, "\\'")}')" class="btn btn-secondary">Copy Certificate No</button>
+                        <button onclick="copyField('importerName', '${(data.Importer || '').replace(/'/g, "\\'")}')" class="btn btn-secondary">Copy Importer</button>
+                        <button onclick="copyField('exporterName', '${(data.Exporter || '').replace(/'/g, "\\'")}')" class="btn btn-secondary">Copy Exporter</button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function generateDataCopySection() {
+            const data = window.extractedData;
+            const fields = [
+                { key: 'Certificate_No', label: 'Certificate Number', value: data.Certificate_No || '' },
+                { key: 'Entry_No', label: 'Entry Number', value: data.Entry_No || '' },
+                { key: 'Importer', label: 'Importer', value: data.Importer || '' },
+                { key: 'Exporter', label: 'Exporter', value: data.Exporter || '' },
+                { key: 'Forwarder', label: 'Forwarder', value: data.Forwarder || '' },
+                { key: 'transporterName', label: 'Transporter', value: data.transporterName || 'OWN' },
+                { key: 'Transport', label: 'Vehicle Number', value: data.Transport || '' },
+                { key: 'Discharge_Place', label: 'Discharge Location', value: data.Discharge_Place || '' },
+                { key: 'Final_Destination', label: 'Final Destination', value: data.Final_Destination || '' },
+                { key: 'FOB_Value', label: 'FOB Value', value: data.FOB_Value || '' },
+                { key: 'Base_Freight', label: 'Freight Value', value: data.Base_Freight || '' },
+                { key: 'validationNotes', label: 'Validation Notes', value: data.validationNotes || 'please verify' },
+                { key: 'Descriptions', label: 'Cargo Description', value: Array.isArray(data.Descriptions) ? data.Descriptions.join('\\n') : (data.Descriptions || '') }
+            ];
+
+            return fields.map(field => `
+                <div class="data-field mb-2">
+                    <label><strong>${field.label}:</strong></label>
+                    <div class="input-group">
+                        <input type="text" value="${field.value}" readonly class="form-control" id="field-${field.key}">
+                        <button onclick="copyField('${field.key}', '${field.value.replace(/'/g, "\\'")}')" class="btn btn-outline-primary btn-sm">Copy</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function createModal(title, content) {
+            const modal = document.createElement('div');
+            modal.className = 'modal fade show';
+            modal.style.display = 'block';
+            modal.innerHTML = `
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">${title}</h5>
+                            <button type="button" class="btn-close" onclick="this.closest('.modal').remove()"></button>
+                        </div>
+                        <div class="modal-body">
+                            ${content}
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" onclick="this.closest('.modal').remove()">Close</button>
+                            <button type="button" class="btn btn-primary" onclick="openInvescoForm()">Open Invesco Form</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            return modal;
+        }
+        
+        function copyAllData() {
+            const data = window.extractedData;
+            const dataStr = JSON.stringify(data, null, 2);
+            
+            navigator.clipboard.writeText(dataStr).then(() => {
+                alert('All data copied to clipboard!');
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+                // Fallback
+                const textArea = document.createElement('textarea');
+                textArea.value = dataStr;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                alert('All data copied to clipboard!');
+            });
+        }
+        
+        function copyField(fieldKey, value) {
+            navigator.clipboard.writeText(value).then(() => {
+                // Visual feedback
+                const button = event.target;
+                const originalText = button.textContent;
+                button.textContent = 'Copied!';
+                button.classList.add('btn-success');
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.classList.remove('btn-success');
+                }, 1000);
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+                alert('Failed to copy to clipboard');
+            });
         }
 
         function downloadData() {
-            const data = {{ data | tojson }};
+            const data = window.extractedData;
             const dataStr = JSON.stringify(data, null, 2);
             const dataBlob = new Blob([dataStr], {type: 'application/json'});
             const url = URL.createObjectURL(dataBlob);
