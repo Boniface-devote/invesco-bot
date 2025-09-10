@@ -1,5 +1,6 @@
 [phases.setup]
 nixPkgs = [
+  "python311Full",
   "libreoffice",
   "fontconfig",
   "dejavu_fonts"
