@@ -5,20 +5,20 @@ def insert_data(ws, data, freight_number, container_type='', num_containers=1, t
     Insert extracted data into the Excel worksheet for 'normal' PDF type.
     """
     if 'attestation_number' in data:
-        ws.range('E6').value = f"FERI/AD: {data['attestation_number']}"
-        ws.range('B11').value = f"CERTIFICATE (FERI/ADR/AD) No : {data['attestation_number']}"
+        ws['E6'] = f"FERI/AD: {data['attestation_number']}"
+        ws['B11'] = f"CERTIFICATE (FERI/ADR/AD) No : {data['attestation_number']}"
     
     if 'forwarding_agent' in data:
-        ws.range('B8').value = f"DEBTOR: {data['forwarding_agent']}"
+        ws['B8'] = f"DEBTOR: {data['forwarding_agent']}"
     
     if 'importateur' in data:
-        ws.range('B10').value = f"IMPORTER: {data['importateur']}"
+        ws['B10'] = f"IMPORTER: {data['importateur']}"
     
     if 'transport_id' in data:
-        ws.range('B14').value = data['transport_id']
+        ws['B14'] = data['transport_id']
     
     if freight_number is not None:
-        ws.range('D18').value = freight_number
+        ws['D18'] = freight_number
 
     # Handle CBM field
     if 'cbm' in data:
@@ -28,14 +28,14 @@ def insert_data(ws, data, freight_number, container_type='', num_containers=1, t
             
             if template_file in specific_templates:
                 truncated_cbm = math.trunc(cbm_value)
-                ws.range('D14').value = truncated_cbm
+                ws['D14'] = truncated_cbm
             
             else:
                 ft_20_templates = ['PROFORMA_INVOICE_1x20.xlsx']
                 if template_file in ft_20_templates:
-                    ws.range('D14').value = 60
+                    ws['D14'] = 60
                 else:
-                    ws.range('D14').value = cbm_value
+                    ws['D14'] = cbm_value
         except (ValueError, TypeError):
             # fallback if cbm format is wrong
-            ws.range('D14').value = data['cbm']
+            ws['D14'] = data['cbm']

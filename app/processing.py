@@ -1,10 +1,11 @@
-import xlwings as xw
 from io import BytesIO
 import os
 import glob
 import json
 import tempfile
 import shutil
+import subprocess
+from openpyxl import load_workbook
 
 # Directory containing Excel templates
 laban_dir = 'template/laban'  # Directory for Normal FERI templates
@@ -59,73 +60,73 @@ def process_excel_and_pdf(data, pdf_type, template_file, freight_number, contain
         temp_dir = tempfile.mkdtemp()
         temp_excel_path = os.path.join(temp_dir, f"temp_{template_file}")
         temp_pdf_path = os.path.join(temp_dir, "temp_output.pdf")
-        
+
         try:
             # Copy template to temporary location
             shutil.copy2(template_path, temp_excel_path)
-            
-            # Open Excel application with xlwings
-            app = xw.App(visible=False, add_book=False)
-            
-            try:
-                # Open the workbook
-                wb = app.books.open(temp_excel_path)
-                ws = wb.sheets[0]  # Get the active sheet
-                
-                # Dynamically import and call the insertion function based on pdf_type
-                if pdf_type == 'normal':
-                    from .insertions_normal import insert_data as insert_func
-                elif pdf_type == 'maritime':
-                    from .insertions_maritime import insert_data as insert_func
-                elif pdf_type == 'possiano':
-                    from .insertions_possiano import insert_data as insert_func
-                elif pdf_type == 'busia':
-                    from .insertions_busia import insert_data as insert_func
-                else:
-                    from .insertions_maritime import insert_data as insert_func
-                
-                # Insert the data
-                # Pass template filename only for modules that accept it
-                try:
-                    insert_func(ws, data, freight_number, container_type, num_containers, template_file)
-                except TypeError:
-                    insert_func(ws, data, freight_number, container_type, num_containers)
 
-                # Force calculation of all formulas
-                wb.app.calculate()
-                
-                # Save the Excel file
-                wb.save()
-                
-                # Export to PDF with exact formatting
-                wb.api.ExportAsFixedFormat(Type=0, Filename=temp_pdf_path)
-                
-                # Read the modified Excel file into memory
-                with open(temp_excel_path, 'rb') as f:
-                    modified_excel = BytesIO(f.read()) 
-                
-                # Read the PDF file into memory
+            # Open workbook using openpyxl
+            wb = load_workbook(filename=temp_excel_path, data_only=False)
+            ws = wb.worksheets[0]
+
+            # Dynamically import and call the insertion function based on pdf_type
+            if pdf_type == 'normal':
+                from .insertions_normal import insert_data as insert_func
+            elif pdf_type == 'maritime':
+                from .insertions_maritime import insert_data as insert_func
+            elif pdf_type == 'possiano':
+                from .insertions_possiano import insert_data as insert_func
+            elif pdf_type == 'busia':
+                from .insertions_busia import insert_data as insert_func
+            else:
+                from .insertions_maritime import insert_data as insert_func
+
+            # Insert the data
+            try:
+                insert_func(ws, data, freight_number, container_type, num_containers, template_file)
+            except TypeError:
+                insert_func(ws, data, freight_number, container_type, num_containers)
+
+            # Save workbook after modifications
+            wb.save(temp_excel_path)
+
+            # Convert to PDF using LibreOffice in headless mode
+            # Attempt to use 'soffice' binary available in PATH
+            convert_cmd = [
+                'soffice', '--headless', '--nologo', '--nofirststartwizard',
+                '--convert-to', 'pdf', '--outdir', temp_dir, temp_excel_path
+            ]
+            try:
+                subprocess.run(convert_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            except Exception as _:
+                # Fallback to libreoffice binary name
+                convert_cmd[0] = 'libreoffice'
+                subprocess.run(convert_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+            # LibreOffice names output based on input; find produced PDF
+            produced_pdf = None
+            for fname in os.listdir(temp_dir):
+                if fname.lower().endswith('.pdf'):
+                    produced_pdf = os.path.join(temp_dir, fname)
+                    break
+            if produced_pdf and os.path.exists(produced_pdf):
+                shutil.copy2(produced_pdf, temp_pdf_path)
+
+            # Read the modified Excel file into memory
+            with open(temp_excel_path, 'rb') as f:
+                modified_excel = BytesIO(f.read())
+
+            # Read the PDF file into memory
+            if os.path.exists(temp_pdf_path):
                 with open(temp_pdf_path, 'rb') as f:
                     modified_pdf = BytesIO(f.read())
-                
-                # Store in globals
-                modified_excel_global = modified_excel
-                modified_pdf_global = modified_pdf
-                
-            finally:
-                # Close workbook and quit Excel application
-                wb.close()
-                app.quit()
-                
+
+            # Store in globals
+            modified_excel_global = modified_excel
+            modified_pdf_global = modified_pdf
+
         except Exception as e:
             print(f"Error processing Excel/PDF: {str(e)}")
-            # Cleanup in case of error
-            try:
-                if 'app' in locals():
-                    app.quit()
-            except:
-                pass
-            
         finally:
             # Clean up temporary files
             try:
